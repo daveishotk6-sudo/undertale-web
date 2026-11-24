@@ -6,26 +6,25 @@
 
 :{$PORT} {
     root * /srv
-    encode gzip
 
-    # Proper MIME types
+    # Do NOT gzip large binaries – this often breaks GameMaker loading
+    @staticNotBinary not path *.unx *.data *.wasm *.ogg
+    encode @staticNotBinary gzip
+
+    # Correct MIME types
     @wasm path *.wasm
     header @wasm Content-Type application/wasm
 
-    @data path *.data *.unx
-    header @data Content-Type application/octet-stream
+    @bin path *.data *.unx
+    header @bin Content-Type application/octet-stream
 
     @ogg path *.ogg
     header @ogg Content-Type audio/ogg
 
-    # Allow large files and range requests (critical for game.unx)
     header {
         Accept-Ranges bytes
     }
 
-    file_server {
-        precompressed
-    }
-
+    file_server
     try_files {path} {path}/ /index.html
 }
