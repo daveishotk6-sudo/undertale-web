@@ -7,6 +7,20 @@
 :{$PORT} {
     root * /srv
     encode gzip
+
+    # Critical MIME types for GameMaker HTML5
+    @wasm path *.wasm
+    header @wasm Content-Type application/wasm
+
+    @data path *.data
+    header @data Content-Type application/octet-stream
+
+    @unx path *.unx
+    header @unx Content-Type application/octet-stream
+
+    @ogg path *.ogg
+    header @ogg Content-Type audio/ogg
+
     file_server
     try_files {path} {path}/ /index.html
 }
