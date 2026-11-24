@@ -2601,54 +2601,55 @@
 
         function dispatchKey(code, type) {
           const keyMap = {
-            ArrowUp: "ArrowUp",
-            ArrowDown: "ArrowDown",
-            ArrowLeft: "ArrowLeft",
-            ArrowRight: "ArrowRight",
-            KeyZ: "z",
-            KeyC: "c",
-            KeyX: "x",
-            Enter: "Enter",
-            ShiftLeft: "Shift"
+            ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
+            ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
+            KeyZ: "z", KeyC: "c", KeyX: "x",
+            Enter: "Enter", ShiftLeft: "Shift"
           };
-
-          const key = keyMap[code] || code;
           const keyCodeMap = {
             ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
             Enter: 13, ShiftLeft: 16, KeyZ: 90, KeyC: 67, KeyX: 88
           };
-          const keyCode = keyCodeMap[code] || 0;
 
+          const key = keyMap[code] || code;
+          const keyCode = keyCodeMap[code] || 0;
           const canvas = document.getElementById("canvas");
+
           if (canvas) {
-            // GameMaker listens on the canvas – make sure it has focus
             canvas.focus();
+            canvas.click(); // help with focus on some mobile browsers
           }
 
-          // Build a more complete event that older GameMaker runners accept
-          const init = {
-            key: key,
-            code: code,
-            keyCode: keyCode,
-            which: keyCode,
-            charCode: type === "keypress" ? keyCode : 0,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            view: window
+          // Method 1: full KeyboardEvent
+          const opts = {
+            key, code, keyCode, which: keyCode,
+            bubbles: true, cancelable: true, composed: true, view: window
           };
 
-          // Dispatch on multiple targets so one of them is caught
-          const targets = [window, document, canvas].filter(Boolean);
-          for (const target of targets) {
+          const targets = [canvas, document, window].filter(Boolean);
+          for (const t of targets) {
             try {
-              const ev = new KeyboardEvent(type, init);
-              // Some older engines look at these directly
-              Object.defineProperty(ev, "keyCode", { get: () => keyCode });
-              Object.defineProperty(ev, "which", { get: () => keyCode });
-              target.dispatchEvent(ev);
-            } catch (e) {}
+              const ev = new KeyboardEvent(type, opts);
+              Object.defineProperties(ev, {
+                keyCode: { get: () => keyCode },
+                which: { get: () => keyCode },
+                isTrusted: { get: () => true }  // some engines check this
+              });
+              t.dispatchEvent(ev);
+            } catch(e){}
           }
+
+          // Method 2: also fire a legacy event for very old runners
+          try {
+            const legacy = document.createEvent("Event");
+            legacy.initEvent(type, true, true);
+            legacy.keyCode = keyCode;
+            legacy.which = keyCode;
+            legacy.key = key;
+            legacy.code = code;
+            if (canvas) canvas.dispatchEvent(legacy);
+            document.dispatchEvent(legacy);
+          } catch(e){}
         }
 
         function press(code) {
