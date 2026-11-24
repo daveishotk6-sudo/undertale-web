@@ -426,6 +426,95 @@
       .relay-rtt {
         stroke-width: 2;
       }
+
+      /* ===== Virtual Controls ===== */
+      #virtual-controls {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+      }
+
+      #virtual-controls.visible {
+        display: block;
+      }
+
+      .vstick-base {
+        position: absolute;
+        bottom: 40px;
+        left: 30px;
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+        pointer-events: auto;
+        touch-action: none;
+      }
+
+      .vstick-knob {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(250, 30, 78, 0.85);
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: transform 0.05s linear;
+        pointer-events: none;
+      }
+
+      .vbtn {
+        position: absolute;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(46, 39, 63, 0.85);
+        border: 2px solid #FA1E4E;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        transition: transform 0.08s, background 0.08s;
+      }
+
+      .vbtn.active {
+        background: #FA1E4E;
+        transform: scale(0.92);
+      }
+
+      #vbtn-c     { bottom: 160px; right: 110px; }
+      #vbtn-x     { bottom: 90px;  right: 40px;  }
+      #vbtn-shift { bottom: 90px;  right: 180px; }
+      #vbtn-enter { bottom: 20px;  right: 110px; }
+
+      #toggle-virtual-controls {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 10000;
+        background: rgba(0, 0, 0, 0.6);
+        color: #bdff00;
+        border: 1px solid #bdff00;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-family: monospace;
+        font-size: 13px;
+        cursor: pointer;
+        pointer-events: auto;
+      }
     </style>
   </head>
 
@@ -449,6 +538,19 @@
         </div>
         </div>
     </div>
+
+    <!-- Virtual on-screen controls -->
+    <button id="toggle-virtual-controls" type="button">Controls</button>
+    <div id="virtual-controls">
+      <div class="vstick-base" id="vstick-base">
+        <div class="vstick-knob" id="vstick-knob"></div>
+      </div>
+      <div class="vbtn" id="vbtn-c" data-key="KeyC">C</div>
+      <div class="vbtn" id="vbtn-x" data-key="KeyX">X</div>
+      <div class="vbtn" id="vbtn-shift" data-key="ShiftLeft">Shift</div>
+      <div class="vbtn" id="vbtn-enter" data-key="Enter">Enter</div>
+    </div>
+
     <div class="loading">
       <div class="spinner" id="spinner"></div>
       <div class="emscripten" id="status">Downloading...</div>
@@ -2441,6 +2543,182 @@
 
         wallpaper_update_config(JSON.stringify(wallpaperConfig));
       }
+
+      /* ===== Virtual Controls Logic ===== */
+      (function initVirtualControls() {
+        const controlsRoot = document.getElementById("virtual-controls");
+        const toggleBtn = document.getElementById("toggle-virtual-controls");
+        const stickBase = document.getElementById("vstick-base");
+        const stickKnob = document.getElementById("vstick-knob");
+
+        if (!controlsRoot || !toggleBtn || !stickBase || !stickKnob) return;
+
+        // Show by default on touch devices
+        const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        if (isTouch) {
+          controlsRoot.classList.add("visible");
+        }
+
+        toggleBtn.addEventListener("click", () => {
+          controlsRoot.classList.toggle("visible");
+        });
+
+        // ---------- helpers ----------
+        const pressedKeys = new Set();
+
+        function dispatchKey(code, type) {
+          const keyMap = {
+            ArrowUp: "ArrowUp",
+            ArrowDown: "ArrowDown",
+            ArrowLeft: "ArrowLeft",
+            ArrowRight: "ArrowRight",
+            KeyC: "c",
+            KeyX: "x",
+            Enter: "Enter",
+            ShiftLeft: "Shift"
+          };
+
+          const key = keyMap[code] || code;
+          const keyCodeMap = {
+            ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
+            Enter: 13, ShiftLeft: 16, KeyC: 67, KeyX: 88
+          };
+          const keyCode = keyCodeMap[code] || 0;
+
+          const event = new KeyboardEvent(type, {
+            key: key,
+            code: code,
+            keyCode: keyCode,
+            which: keyCode,
+            bubbles: true,
+            cancelable: true
+          });
+
+          window.dispatchEvent(event);
+          const canvas = document.getElementById("canvas");
+          if (canvas) canvas.dispatchEvent(event);
+        }
+
+        function press(code) {
+          if (pressedKeys.has(code)) return;
+          pressedKeys.add(code);
+          dispatchKey(code, "keydown");
+        }
+
+        function release(code) {
+          if (!pressedKeys.has(code)) return;
+          pressedKeys.delete(code);
+          dispatchKey(code, "keyup");
+        }
+
+        function releaseAll() {
+          for (const code of [...pressedKeys]) {
+            release(code);
+          }
+        }
+
+        // ---------- Joystick (arrows) ----------
+        let stickActive = false;
+        let stickId = null;
+        const deadzone = 0.25;
+        const maxDist = 40;
+
+        function updateStick(clientX, clientY) {
+          const rect = stickBase.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          let dx = clientX - cx;
+          let dy = clientY - cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+          }
+
+          stickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+          const nx = dx / maxDist;
+          const ny = dy / maxDist;
+
+          release("ArrowLeft");
+          release("ArrowRight");
+          release("ArrowUp");
+          release("ArrowDown");
+
+          if (Math.abs(nx) > deadzone) {
+            if (nx < 0) press("ArrowLeft");
+            else press("ArrowRight");
+          }
+          if (Math.abs(ny) > deadzone) {
+            if (ny < 0) press("ArrowUp");
+            else press("ArrowDown");
+          }
+        }
+
+        function resetStick() {
+          stickKnob.style.transform = "translate(-50%, -50%)";
+          release("ArrowLeft");
+          release("ArrowRight");
+          release("ArrowUp");
+          release("ArrowDown");
+          stickActive = false;
+          stickId = null;
+        }
+
+        stickBase.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          stickActive = true;
+          stickId = e.pointerId;
+          stickBase.setPointerCapture(e.pointerId);
+          updateStick(e.clientX, e.clientY);
+        });
+
+        stickBase.addEventListener("pointermove", (e) => {
+          if (!stickActive || e.pointerId !== stickId) return;
+          e.preventDefault();
+          updateStick(e.clientX, e.clientY);
+        });
+
+        const endStick = (e) => {
+          if (e.pointerId === stickId) {
+            e.preventDefault();
+            resetStick();
+          }
+        };
+
+        stickBase.addEventListener("pointerup", endStick);
+        stickBase.addEventListener("pointercancel", endStick);
+        stickBase.addEventListener("lostpointercapture", endStick);
+
+        // ---------- Action buttons ----------
+        document.querySelectorAll(".vbtn").forEach((btn) => {
+          const code = btn.dataset.key;
+
+          const down = (e) => {
+            e.preventDefault();
+            btn.classList.add("active");
+            press(code);
+          };
+
+          const up = (e) => {
+            e.preventDefault();
+            btn.classList.remove("active");
+            release(code);
+          };
+
+          btn.addEventListener("pointerdown", down);
+          btn.addEventListener("pointerup", up);
+          btn.addEventListener("pointercancel", up);
+          btn.addEventListener("pointerleave", up);
+        });
+
+        // Safety: release everything if page loses focus
+        window.addEventListener("blur", releaseAll);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "visible") releaseAll();
+        });
+      })();
     </script>
     <script async type="text/javascript" src="runner.js"></script>
   </body>
