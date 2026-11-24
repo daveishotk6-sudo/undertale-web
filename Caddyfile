@@ -1,4 +1,10 @@
-:{$PORT:8080} {
+{
+    admin off
+    persist_config off
+    auto_https off
+}
+
+:{$PORT} {
     root * /srv
     encode gzip
     file_server
