@@ -451,11 +451,7 @@
         inset: 0;
         pointer-events: none;
         z-index: 9999;
-        display: none;
-      }
-
-      #virtual-controls.visible {
-        display: block;
+        display: block; /* always show */
       }
 
       .vstick-base {
@@ -516,7 +512,7 @@
       #vbtn-c     { bottom: 160px; right: 110px; }
       #vbtn-x     { bottom: 90px;  right: 40px;  }
       #vbtn-shift { bottom: 90px;  right: 180px; }
-      #vbtn-enter { bottom: 20px;  right: 110px; }
+      #vbtn-enter { bottom: 20px;  right: 110px; width: 72px; height: 72px; font-size: 15px; background: #FA1E4E; }
 
       #toggle-virtual-controls {
         position: fixed;
@@ -2571,14 +2567,12 @@
 
         if (!controlsRoot || !toggleBtn || !stickBase || !stickKnob) return;
 
-        // Show by default on touch devices
-        const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-        if (isTouch) {
-          controlsRoot.classList.add("visible");
-        }
+        // Always show the on-screen controls
+        controlsRoot.style.display = "block";
 
         toggleBtn.addEventListener("click", () => {
-          controlsRoot.classList.toggle("visible");
+          const hidden = controlsRoot.style.display === "none";
+          controlsRoot.style.display = hidden ? "block" : "none";
         });
 
         // ---------- helpers ----------
