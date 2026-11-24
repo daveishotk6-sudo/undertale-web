@@ -1,24 +1,20 @@
 const loadGame = () => {
-  let script = document.createElement("script");
+  const script = document.createElement("script");
   script.src = "runner.js";
   script.async = true;
   document.head.appendChild(script);
 };
 
-// wait till SW is ready to handle fetch
 const loadSW = async () => {
   try {
-    await navigator.serviceWorker.register("sw.js");
-    await navigator.serviceWorker.ready;
-
-    loadGame();
+    if ("serviceWorker" in navigator) {
+      await navigator.serviceWorker.register("sw.js");
+      await navigator.serviceWorker.ready;
+    }
   } catch (e) {
-    console.error(e);
-
-    loadGame();
+    console.warn("Service worker failed, loading game anyway", e);
   }
+  loadGame();
 };
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", loadSW);
-}
+window.addEventListener("load", loadSW);
