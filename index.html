@@ -521,6 +521,7 @@
         transform: scale(0.92);
       }
 
+      #vbtn-z     { bottom: 160px; right: 40px;  width: 64px; height: 64px; background: #FA1E4E; }
       #vbtn-c     { bottom: 160px; right: 110px; }
       #vbtn-x     { bottom: 90px;  right: 40px;  }
       #vbtn-shift { bottom: 90px;  right: 180px; }
@@ -574,6 +575,7 @@
         <div class="dpad-btn dpad-left"  data-key="ArrowLeft">◀</div>
         <div class="dpad-btn dpad-right" data-key="ArrowRight">▶</div>
       </div>
+      <div class="vbtn" id="vbtn-z" data-key="KeyZ">Z</div>
       <div class="vbtn" id="vbtn-c" data-key="KeyC">C</div>
       <div class="vbtn" id="vbtn-x" data-key="KeyX">X</div>
       <div class="vbtn" id="vbtn-shift" data-key="ShiftLeft">Shift</div>
@@ -2596,6 +2598,7 @@
             ArrowDown: "ArrowDown",
             ArrowLeft: "ArrowLeft",
             ArrowRight: "ArrowRight",
+            KeyZ: "z",
             KeyC: "c",
             KeyX: "x",
             Enter: "Enter",
@@ -2605,7 +2608,7 @@
           const key = keyMap[code] || code;
           const keyCodeMap = {
             ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
-            Enter: 13, ShiftLeft: 16, KeyC: 67, KeyX: 88
+            Enter: 13, ShiftLeft: 16, KeyZ: 90, KeyC: 67, KeyX: 88
           };
           const keyCode = keyCodeMap[code] || 0;
 
