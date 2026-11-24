@@ -340,7 +340,13 @@
         padding: 12px 24px;
         margin: 5px 0;
         -webkit-user-select: none;
+        outline: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
         user-select: none;
+        outline: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       #pauseMenu button#quitButton {
@@ -447,7 +453,11 @@
 
       /* ===== Virtual Controls ===== */
       #virtual-controls {
-        display: none !important;
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        display: block;
       }
 
       .dpad {
@@ -475,7 +485,13 @@
         pointer-events: auto;
         touch-action: none;
         user-select: none;
+        outline: none;
         -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-user-select: none;
+        outline: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
         box-shadow: 0 3px 10px rgba(0,0,0,0.4);
         transition: transform 0.08s, background 0.08s;
       }
@@ -512,7 +528,13 @@
         pointer-events: auto;
         touch-action: none;
         user-select: none;
+        outline: none;
         -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-user-select: none;
+        outline: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
         transition: transform 0.08s, background 0.08s;
       }
@@ -529,7 +551,7 @@
       #vbtn-enter { bottom: 20px;  right: 110px; width: 72px; height: 72px; font-size: 15px; background: #FA1E4E; }
 
       #toggle-virtual-controls {
-        display: none !important;
+        display: none !important; /* hide toggle for now */
       }
     </style>
   </head>
@@ -2564,14 +2586,121 @@
         wallpaper_update_config(JSON.stringify(wallpaperConfig));
       }
 
-      /* ===== Virtual Controls Logic (disabled) ===== */
-      (function initVirtualControls() {
-        // Completely disabled to stop focus interference with the game
-        const controlsRoot = document.getElementById("virtual-controls");
-        const toggleBtn = document.getElementById("toggle-virtual-controls");
-        if (controlsRoot) controlsRoot.style.display = "none";
-        if (toggleBtn) toggleBtn.style.display = "none";
-      })();
+      /* ===== Virtual Controls Logic ===== */
+(function initVirtualControls() {
+  const controlsRoot = document.getElementById("virtual-controls");
+  if (!controlsRoot) return;
+  controlsRoot.style.display = "block";
+
+  const canvas = document.getElementById("canvas");
+  if (canvas) {
+    canvas.setAttribute("tabindex", "1");
+    // Focus once at start, never again from buttons
+    setTimeout(() => { try { canvas.focus(); } catch(e){} }, 500);
+  }
+
+  // Currently held keys
+  const held = new Set();
+
+  const keyInfo = {
+    ArrowUp:    { key: "ArrowUp",    keyCode: 38 },
+    ArrowDown:  { key: "ArrowDown",  keyCode: 40 },
+    ArrowLeft:  { key: "ArrowLeft",  keyCode: 37 },
+    ArrowRight: { key: "ArrowRight", keyCode: 39 },
+    KeyZ:       { key: "z",          keyCode: 90 },
+    KeyX:       { key: "x",          keyCode: 88 },
+    KeyC:       { key: "c",          keyCode: 67 },
+    Enter:      { key: "Enter",      keyCode: 13 },
+    ShiftLeft:  { key: "Shift",      keyCode: 16 }
+  };
+
+  function fire(code, type) {
+    const info = keyInfo[code];
+    if (!info) return;
+
+    const targets = [canvas, document, window].filter(Boolean);
+    for (const target of targets) {
+      try {
+        const ev = new KeyboardEvent(type, {
+          key: info.key,
+          code: code,
+          keyCode: info.keyCode,
+          which: info.keyCode,
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        // Force the properties some runners read
+        Object.defineProperty(ev, "keyCode", { get() { return info.keyCode; } });
+        Object.defineProperty(ev, "which",   { get() { return info.keyCode; } });
+        target.dispatchEvent(ev);
+      } catch (e) {}
+    }
+  }
+
+  function press(code) {
+    if (held.has(code)) return;
+    held.add(code);
+    fire(code, "keydown");
+  }
+
+  function release(code) {
+    if (!held.has(code)) return;
+    held.delete(code);
+    fire(code, "keyup");
+  }
+
+  // Continuous hold – re-send keydown while held (helps some GM runners)
+  setInterval(() => {
+    for (const code of held) {
+      fire(code, "keydown");
+    }
+  }, 50);
+
+  function bind(btn) {
+    const code = btn.getAttribute("data-key");
+    if (!code) return;
+
+    // Prevent the button from ever taking focus
+    btn.setAttribute("tabindex", "-1");
+    btn.style.outline = "none";
+    btn.style.webkitUserSelect = "none";
+    btn.style.userSelect = "none";
+
+    const down = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      btn.classList.add("active");
+      press(code);
+    };
+
+    const up = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.classList.remove("active");
+      release(code);
+    };
+
+    btn.addEventListener("pointerdown", down, { passive: false });
+    btn.addEventListener("pointerup", up, { passive: false });
+    btn.addEventListener("pointercancel", up, { passive: false });
+    btn.addEventListener("pointerleave", up, { passive: false });
+    btn.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  document.querySelectorAll(".dpad-btn, .vbtn").forEach(bind);
+
+  // Release everything on blur / visibility change
+  window.addEventListener("blur", () => {
+    for (const code of [...held]) release(code);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") {
+      for (const code of [...held]) release(code);
+    }
+  });
+})();
     </script>
     <script async type="text/javascript" src="runner.js"></script>
   </body>
