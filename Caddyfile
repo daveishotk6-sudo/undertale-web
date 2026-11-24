@@ -1,5 +1,5 @@
 :{$PORT:8080} {
-    root * .
+    root * /srv
     file_server
     try_files {path} /index.html
     encode gzip

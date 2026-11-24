@@ -1,7 +1,7 @@
 [build]
-builder = "RAILPACK"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "caddy run --config Caddyfile --adapter caddyfile"
 healthcheckPath = "/"
 healthcheckTimeout = 30
