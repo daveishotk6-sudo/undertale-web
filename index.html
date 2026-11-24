@@ -447,11 +447,7 @@
 
       /* ===== Virtual Controls ===== */
       #virtual-controls {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 9999;
-        display: block; /* always show */
+        display: none !important;
       }
 
       .dpad {
@@ -533,19 +529,7 @@
       #vbtn-enter { bottom: 20px;  right: 110px; width: 72px; height: 72px; font-size: 15px; background: #FA1E4E; }
 
       #toggle-virtual-controls {
-        position: fixed;
-        top: 12px;
-        right: 12px;
-        z-index: 10000;
-        background: rgba(0, 0, 0, 0.6);
-        color: #bdff00;
-        border: 1px solid #bdff00;
-        border-radius: 6px;
-        padding: 6px 12px;
-        font-family: monospace;
-        font-size: 13px;
-        cursor: pointer;
-        pointer-events: auto;
+        display: none !important;
       }
     </style>
   </head>
@@ -2580,122 +2564,13 @@
         wallpaper_update_config(JSON.stringify(wallpaperConfig));
       }
 
-      /* ===== Virtual Controls Logic ===== */
+      /* ===== Virtual Controls Logic (disabled) ===== */
       (function initVirtualControls() {
+        // Completely disabled to stop focus interference with the game
         const controlsRoot = document.getElementById("virtual-controls");
         const toggleBtn = document.getElementById("toggle-virtual-controls");
-        if (!controlsRoot || !toggleBtn) return;
-
-        // Always show
-        controlsRoot.style.display = "block";
-
-        toggleBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const hidden = controlsRoot.style.display === "none";
-          controlsRoot.style.display = hidden ? "block" : "none";
-        });
-
-        const pressedKeys = new Set();
-        const canvas = document.getElementById("canvas");
-
-        function dispatchKey(code, type) {
-          const keyMap = {
-            ArrowUp: "ArrowUp", ArrowDown: "ArrowDown",
-            ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
-            KeyZ: "z", KeyC: "c", KeyX: "x",
-            Enter: "Enter", ShiftLeft: "Shift"
-          };
-          const keyCodeMap = {
-            ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
-            Enter: 13, ShiftLeft: 16, KeyZ: 90, KeyC: 67, KeyX: 88
-          };
-
-          const key = keyMap[code] || code;
-          const keyCode = keyCodeMap[code] || 0;
-
-          const opts = {
-            key, code, keyCode, which: keyCode,
-            bubbles: true, cancelable: true, composed: true, view: window
-          };
-
-          // Prefer sending to the canvas without stealing focus
-          const targets = [canvas, document, window].filter(Boolean);
-          for (const t of targets) {
-            try {
-              const ev = new KeyboardEvent(type, opts);
-              Object.defineProperties(ev, {
-                keyCode: { get: () => keyCode },
-                which: { get: () => keyCode }
-              });
-              t.dispatchEvent(ev);
-            } catch (e) {}
-          }
-        }
-
-        function press(code) {
-          if (pressedKeys.has(code)) return;
-          pressedKeys.add(code);
-          dispatchKey(code, "keydown");
-        }
-
-        function release(code) {
-          if (!pressedKeys.has(code)) return;
-          pressedKeys.delete(code);
-          dispatchKey(code, "keyup");
-        }
-
-        function releaseAll() {
-          for (const code of [...pressedKeys]) release(code);
-        }
-
-        // Bind all virtual buttons (D-pad + action buttons)
-        function bindButton(btn) {
-          const code = btn.dataset.key;
-          if (!code) return;
-
-          const down = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            btn.classList.add("active");
-            press(code);
-          };
-
-          const up = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            btn.classList.remove("active");
-            release(code);
-          };
-
-          // Use pointer events, prevent default so focus stays on canvas
-          btn.addEventListener("pointerdown", down);
-          btn.addEventListener("pointerup", up);
-          btn.addEventListener("pointercancel", up);
-          btn.addEventListener("pointerleave", up);
-
-          // Also block mouse/touch focus
-          btn.addEventListener("mousedown", (e) => e.preventDefault());
-          btn.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-        }
-
-        document.querySelectorAll(".dpad-btn, .vbtn").forEach(bindButton);
-
-        // Keep focus on the game canvas
-        if (canvas) {
-          canvas.setAttribute("tabindex", "1");
-          // Re-focus canvas whenever the window gains focus
-          window.addEventListener("focus", () => canvas.focus());
-          document.addEventListener("pointerup", () => {
-            // After any virtual button press, return focus to canvas
-            setTimeout(() => canvas.focus(), 0);
-          });
-        }
-
-        window.addEventListener("blur", releaseAll);
-        document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState !== "visible") releaseAll();
-        });
+        if (controlsRoot) controlsRoot.style.display = "none";
+        if (toggleBtn) toggleBtn.style.display = "none";
       })();
     </script>
     <script async type="text/javascript" src="runner.js"></script>
