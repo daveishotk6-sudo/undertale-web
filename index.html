@@ -550,7 +550,7 @@
       class="emscripten"
       id="canvas"
       oncontextmenu="event.preventDefault()"
-      tabindex="-1"
+      tabindex="1"
     >
     </canvas>
     <div id="pauseMenuContainer" hidden>
@@ -2584,6 +2584,13 @@
         // Always show the on-screen controls
         controlsRoot.style.display = "block";
 
+        // Focus the game canvas so keyboard events are received
+        const canvas = document.getElementById("canvas");
+        if (canvas) {
+          canvas.setAttribute("tabindex", "1");
+          canvas.focus();
+        }
+
         toggleBtn.addEventListener("click", () => {
           const hidden = controlsRoot.style.display === "none";
           controlsRoot.style.display = hidden ? "block" : "none";
@@ -2612,18 +2619,36 @@
           };
           const keyCode = keyCodeMap[code] || 0;
 
-          const event = new KeyboardEvent(type, {
+          const canvas = document.getElementById("canvas");
+          if (canvas) {
+            // GameMaker listens on the canvas – make sure it has focus
+            canvas.focus();
+          }
+
+          // Build a more complete event that older GameMaker runners accept
+          const init = {
             key: key,
             code: code,
             keyCode: keyCode,
             which: keyCode,
+            charCode: type === "keypress" ? keyCode : 0,
             bubbles: true,
-            cancelable: true
-          });
+            cancelable: true,
+            composed: true,
+            view: window
+          };
 
-          window.dispatchEvent(event);
-          const canvas = document.getElementById("canvas");
-          if (canvas) canvas.dispatchEvent(event);
+          // Dispatch on multiple targets so one of them is caught
+          const targets = [window, document, canvas].filter(Boolean);
+          for (const target of targets) {
+            try {
+              const ev = new KeyboardEvent(type, init);
+              // Some older engines look at these directly
+              Object.defineProperty(ev, "keyCode", { get: () => keyCode });
+              Object.defineProperty(ev, "which", { get: () => keyCode });
+              target.dispatchEvent(ev);
+            } catch (e) {}
+          }
         }
 
         function press(code) {
